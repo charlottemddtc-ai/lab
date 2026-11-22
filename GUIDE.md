@@ -29,14 +29,14 @@ Tant que `config.js` n'est pas rempli, l'appli tourne en **mode démo** : elle s
 
 1. Créez un compte sur **netlify.com**.
 2. Allez dans **Sites**, puis **Add new site > Deploy manually**, et **glissez le dossier `lab`** dans la zone.
-3. Netlify vous donne une adresse du type `https://quelque-chose.netlify.app`. Vous pouvez la renommer dans *Site configuration > Change site name* (ex. `lab-maman.netlify.app`).
+3. Netlify vous donne une adresse du type `https://quelque-chose.netlify.app`. Vous pouvez la renommer dans *Site configuration > Change site name* (ex. `mon-lab.netlify.app`).
 
 > Pour toute modification future, glissez de nouveau le dossier dans *Deploys*.
 
 ## Étape 3 : relier les deux
 
 Dans Supabase, ouvrez **Authentication > URL Configuration** :
-- **Site URL** : votre adresse Netlify (ex. `https://lab-maman.netlify.app`)
+- **Site URL** : votre adresse Netlify (ex. `https://mon-lab.netlify.app`)
 - **Redirect URLs** : ajoutez la même adresse
 
 *(Facultatif)* Dans **Authentication > Sign In / Providers > Email**, vous pouvez désactiver « Confirm email » pour éviter l'e-mail de confirmation à l'inscription.
@@ -46,10 +46,10 @@ Dans Supabase, ouvrez **Authentication > URL Configuration** :
 | Appareil | Comment faire |
 |---|---|
 | **iPhone** | Ouvrez l'adresse dans **Safari**, appuyez sur le bouton Partager, puis **Sur l'écran d'accueil** |
-| **Android (papa)** | Ouvrez l'adresse dans **Chrome**, menu ⋮, puis **Installer l'application** |
+| **Android** | Ouvrez l'adresse dans **Chrome**, menu ⋮, puis **Installer l'application** |
 | **Ordinateur** | Ouvrez l'adresse dans **Chrome** ou **Edge**, puis cliquez sur l'icône d'installation à droite de la barre d'adresse |
 
-Créez votre compte au premier lancement. Votre père crée le sien sur ses appareils : chacun ne voit que ses propres transferts.
+Créez votre compte au premier lancement. Chaque personne peut créer son propre compte : chacun ne voit que ses propres transferts.
 
 ## Étape 5 : le bouton « Partager »
 
