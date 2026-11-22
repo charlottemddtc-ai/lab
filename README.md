@@ -2,35 +2,34 @@
 
 # Lab
 
-En fait, j'ai pas WhatsApp sur mon ordi. Du coup, à chaque fois que je voulais passer un lien ou un fichier de mon téléphone à mon ordi, j'étais obligée de me l'envoyer par mail. Donc j'ai fait ma propre appli pour ça.
+Lab est une application web que j'ai créée pour envoyer des liens, des messages et des fichiers entre mon téléphone et mon ordinateur. Je n'ai pas WhatsApp sur mon ordinateur, et je passais par l'e-mail à chaque fois que je voulais transférer quelque chose. J'ai voulu un outil plus simple, que je contrôle entièrement.
 
-Tu colles un lien, tu écris un message ou tu mets un fichier, tu appuies sur Envoyer, et ça arrive direct sur tes autres appareils. Voilà, c'est tout.
+On colle un lien, on écrit un message ou on ajoute un fichier, puis on appuie sur Envoyer. Le contenu apparaît aussitôt sur les autres appareils connectés au même compte.
 
-Je l'utilise sur mon iPhone et mon ordi, et mon père l'utilise aussi sur son Android. Chacun a son compte, donc on voit pas les trucs de l'autre.
+**Démo :** https://frabjous-lamington-b3bf7a.netlify.app
 
-## Ce que ça fait
+## Fonctionnalités
 
-- Envoyer des liens, des messages et des fichiers (photos, PDF, etc.)
-- Ça arrive en direct sur les autres appareils connectés au même compte
-- Ça s'installe comme une vraie appli, sans passer par l'App Store ou le Play Store
-- Sur Android, Lab apparaît dans le menu « Partager »
-- Sur l'ordi, on peut glisser un fichier ou coller une capture d'écran (Ctrl+V)
+- Envoi de liens, de messages et de fichiers (photos, PDF, documents)
+- Synchronisation en temps réel entre les appareils d'un même compte
+- Comptes individuels : chaque utilisateur ne voit que ses propres transferts
+- Installation sur iPhone, Android et ordinateur, sans passer par l'App Store ou le Play Store
+- Intégration au menu « Partager » d'Android
+- Sur ordinateur : glisser-déposer de fichiers et collage de captures d'écran (Ctrl+V)
 
-## Comment c'est fait
+## Technologies
 
-- **HTML, CSS, JavaScript**, sans framework
-- **PWA** : c'est ce qui permet de l'installer sur le téléphone (manifest + service worker)
-- **Supabase** pour les comptes, la base de données, le stockage des fichiers et le temps réel
+- **HTML, CSS et JavaScript**, sans framework
+- **PWA** (manifest et service worker) pour l'installation et le démarrage rapide
+- **Supabase** pour l'authentification, la base de données PostgreSQL, le stockage des fichiers et le temps réel
 - **Netlify** pour l'hébergement
 
-La sécurité est gérée côté base de données, avec des règles (RLS) : un compte ne peut lire que ses propres transferts et ses propres fichiers. C'est dans `supabase-setup.sql`.
+La sécurité repose sur les règles d'accès de la base de données (Row Level Security) : un compte ne peut lire, ajouter ou supprimer que ses propres données et ses propres fichiers. Ces règles sont dans `supabase-setup.sql`.
 
-## Si tu veux l'installer chez toi
+## Installation
 
-1. Crée un projet sur [Supabase](https://supabase.com) et lance `supabase-setup.sql` dans le SQL Editor.
-2. Copie `config.example.js` en `config.js` et mets ton URL Supabase et ta clé publique dedans.
-3. Mets le dossier en ligne (Netlify, ou autre).
+1. Créer un projet sur [Supabase](https://supabase.com) et exécuter `supabase-setup.sql` dans le SQL Editor.
+2. Copier `config.example.js` en `config.js`, puis y renseigner l'URL du projet et la clé publique.
+3. Déployer le dossier sur un hébergeur statique (Netlify, par exemple).
 
-Tout est expliqué étape par étape dans [GUIDE.md](GUIDE.md).
-
-Sans `config.js`, l'appli tourne en mode démo, ça permet de voir à quoi elle ressemble.
+Le détail de chaque étape est dans [GUIDE.md](GUIDE.md). Sans `config.js`, l'application fonctionne en mode démo, ce qui permet de voir l'interface sans rien configurer.
