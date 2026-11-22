@@ -1,0 +1,11 @@
+# Config avec l'adresse et la clé de mon Supabase (copier config.example.js -> config.js)
+config.js
+
+# Fichiers d'outils / système
+.netlify/
+.claude/
+.env
+.env.*
+node_modules/
+.DS_Store
+Thumbs.db
