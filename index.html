@@ -100,10 +100,12 @@
     <section id="dropzone" class="card dropzone" tabindex="0" role="button" aria-label="Choisir des fichiers à envoyer">
       <div class="blobs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
       <input id="file-input" type="file" multiple hidden>
+      <input id="folder-input" type="file" webkitdirectory multiple hidden>
       <div class="drop-inner">
         <svg class="folder" viewBox="0 0 64 52" aria-hidden="true"><path d="M4 8a4 4 0 0 1 4-4h16l6 6h26a4 4 0 0 1 4 4v30a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8z"/><rect x="4" y="16" width="56" height="3" fill="#fff" opacity=".9"/></svg>
         <strong>Déposez vos fichiers ici</strong>
         <span>ou cliquez pour parcourir</span>
+        <button type="button" id="pick-folder" class="link folder-link" hidden>Choisir un dossier</button>
       </div>
       <ul id="picked" class="picked" hidden></ul>
     </section>

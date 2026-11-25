@@ -27,6 +27,11 @@
   }
   const IS_IOS = /iPhone|iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   const IS_TOUCH = matchMedia("(pointer: coarse)").matches;
+  const URL_TTL = 3600; // durée de validité des liens de téléchargement (secondes)
+  let CAN_SHARE_FILES = false;
+  try {
+    CAN_SHARE_FILES = IS_TOUCH && !!navigator.canShare && navigator.canShare({ files: [new File(["x"], "x.txt", { type: "text/plain" })] });
+  } catch {}
 
   function formatSize(b) {
     if (b == null) return "";
@@ -161,7 +166,7 @@
         if (error) { await sb.storage.from(BUCKET).remove([path]); throw error; }
       },
       async fileUrl(item, download = true) {
-        const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(item.file_path, 120, download ? { download: item.file_name } : undefined);
+        const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(item.file_path, URL_TTL, download ? { download: item.file_name } : undefined);
         if (error) throw error;
         return data.signedUrl;
       },
@@ -333,12 +338,89 @@
   // ---- Sélection de fichiers ----
   const dz = $("dropzone");
   const fileInput = $("file-input");
-  dz.addEventListener("click", (e) => { if (!e.target.closest(".picked")) fileInput.click(); });
-  dz.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
+  const folderInput = $("folder-input");
+  dz.addEventListener("click", (e) => { if (!e.target.closest(".picked, #pick-folder")) fileInput.click(); });
+  dz.addEventListener("keydown", (e) => { if (e.target === dz && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fileInput.click(); } });
   fileInput.addEventListener("change", () => { addFiles(fileInput.files); fileInput.value = ""; });
   ["dragenter", "dragover"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("over"); }));
   ["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("over"); }));
-  dz.addEventListener("drop", (e) => addFiles(e.dataTransfer.files));
+  dz.addEventListener("drop", (e) => {
+    // Les entrées doivent être lues tout de suite, avant toute attente
+    const entries = [...(e.dataTransfer.items || [])].map((i) => (i.webkitGetAsEntry ? i.webkitGetAsEntry() : null));
+    if (entries.some((en) => en && en.isDirectory)) dropWithFolders(entries.filter(Boolean));
+    else addFiles(e.dataTransfer.files);
+  });
+
+  // ---- Dossiers : compressés automatiquement en .zip ----
+  if (!IS_TOUCH && "webkitdirectory" in folderInput) $("pick-folder").hidden = false;
+  $("pick-folder").addEventListener("click", (e) => { e.stopPropagation(); folderInput.click(); });
+  folderInput.addEventListener("change", async () => {
+    const groups = new Map();
+    for (const f of folderInput.files) {
+      const parts = (f.webkitRelativePath || f.name).split("/");
+      const root = parts.length > 1 ? parts[0] : "dossier";
+      if (!groups.has(root)) groups.set(root, []);
+      groups.get(root).push({ path: parts.slice(1).join("/") || f.name, file: f });
+    }
+    folderInput.value = "";
+    for (const [name, list] of groups) await zipAndAdd(name, list);
+  });
+
+  async function dropWithFolders(entries) {
+    const loose = [];
+    for (const en of entries) {
+      try {
+        if (en.isDirectory) await zipAndAdd(en.name, await readFolder(en, ""));
+        else loose.push(await new Promise((res, rej) => en.file(res, rej)));
+      } catch (err) {
+        toast("Impossible de lire « " + en.name + " »", true);
+      }
+    }
+    if (loose.length) addFiles(loose);
+  }
+
+  async function readFolder(dirEntry, prefix) {
+    const out = [];
+    const reader = dirEntry.createReader();
+    // readEntries renvoie les éléments par paquets : on boucle jusqu'à la fin
+    for (;;) {
+      const batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+      if (!batch.length) break;
+      for (const en of batch) {
+        if (en.isDirectory) out.push(...(await readFolder(en, prefix + en.name + "/")));
+        else out.push({ path: prefix + en.name, file: await new Promise((res, rej) => en.file(res, rej)) });
+      }
+    }
+    return out;
+  }
+
+  let jszipLoading = null;
+  function loadJSZip() {
+    if (window.JSZip) return Promise.resolve(window.JSZip);
+    jszipLoading ||= new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+      s.onload = () => res(window.JSZip);
+      s.onerror = () => { jszipLoading = null; rej(new Error("Failed to fetch")); };
+      document.head.appendChild(s);
+    });
+    return jszipLoading;
+  }
+
+  async function zipAndAdd(name, list) {
+    if (!list.length) { toast(`Le dossier « ${name} » est vide.`, true); return; }
+    toast(`Compression du dossier « ${name} »…`);
+    try {
+      const JSZip = await loadJSZip();
+      const zip = new JSZip();
+      for (const { path, file } of list) zip.file(path, file);
+      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+      addFiles([new File([blob], name + ".zip", { type: "application/zip" })]);
+      toast(`Dossier « ${name} » prêt (${list.length} fichier${list.length > 1 ? "s" : ""}, compressé en .zip)`);
+    } catch (err) {
+      toast("Compression impossible : " + frenchError(err), true);
+    }
+  }
   // Empêche le navigateur d'ouvrir un fichier lâché à côté de la zone
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => e.preventDefault());
@@ -450,18 +532,78 @@
     return frag;
   }
 
-  async function openFile(item, download) {
-    try {
-      const url = await api.fileUrl(item, download);
-      if (DEMO || IS_IOS || !download) {
-        window.open(url, "_blank", "noopener");
-      } else {
-        const a = document.createElement("a");
-        a.href = url; a.download = item.file_name;
-        document.body.appendChild(a); a.click(); a.remove();
+  /* ---- Fichiers reçus ----
+     Les liens sont préparés AVANT l'appui : le bouton est un vrai lien,
+     donc Safari (iPhone) ne le bloque pas comme une fenêtre pop-up. */
+  const urlCache = new Map();
+  async function getFileUrl(item, download) {
+    const key = item.id + (download ? "|dl" : "|view");
+    const c = urlCache.get(key);
+    if (c && c.exp > Date.now() + 5 * 60 * 1000) return c.url;
+    const url = await api.fileUrl(item, download);
+    urlCache.set(key, { url, exp: Date.now() + URL_TTL * 1000 });
+    return url;
+  }
+
+  function fileLink(label, item, download, cls = "") {
+    const a = document.createElement("a");
+    a.className = "chip " + cls;
+    a.textContent = label;
+    a.href = "#";
+    a.setAttribute("aria-disabled", "true");
+    if (download && !IS_IOS) {
+      a.download = item.file_name; // ordinateur / Android : téléchargement direct
+    } else {
+      a.target = "_blank"; // iPhone : s'ouvre dans Safari, qui propose « Télécharger »
+      a.rel = "noopener";
+    }
+    getFileUrl(item, download)
+      .then((url) => { a.href = url; a.removeAttribute("aria-disabled"); })
+      .catch(() => { a.dataset.failed = "1"; });
+    a.addEventListener("click", (e) => {
+      if (!a.hasAttribute("aria-disabled")) return;
+      e.preventDefault();
+      toast(a.dataset.failed ? "Lien indisponible, appuyez sur Actualiser." : "Préparation du fichier… réessayez dans une seconde.");
+    });
+    return a;
+  }
+
+  // Bouton « Enregistrer » (téléphone) : ouvre le menu de partage du téléphone
+  // → « Enregistrer l'image », « Enregistrer dans Fichiers », etc.
+  const fileCache = new Map();
+  async function saveViaShare(item, btn) {
+    const label = "Enregistrer";
+    let f = fileCache.get(item.id);
+    if (!f) {
+      btn.textContent = "Préparation…";
+      btn.disabled = true;
+      try {
+        const res = await fetch(await getFileUrl(item, false));
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const blob = await res.blob();
+        f = new File([blob], item.file_name, { type: item.mime || blob.type || "application/octet-stream" });
+        if (fileCache.size >= 3) fileCache.delete(fileCache.keys().next().value);
+        fileCache.set(item.id, f);
+      } catch (err) {
+        toast(frenchError(err), true);
+        btn.textContent = label;
+        btn.disabled = false;
+        return;
       }
+      btn.disabled = false;
+    }
+    if (!navigator.canShare || !navigator.canShare({ files: [f] })) {
+      toast("Ce type de fichier ne peut pas être enregistré ainsi : utilisez « Télécharger ».", true);
+      btn.textContent = label;
+      return;
+    }
+    try {
+      await navigator.share({ files: [f] });
+      btn.textContent = label;
     } catch (err) {
-      toast(frenchError(err), true);
+      if (err.name === "AbortError") { btn.textContent = label; return; }
+      // Le téléphone exige un appui « frais » après le téléchargement : on en demande un second
+      btn.textContent = "Appuyer pour enregistrer";
     }
   }
 
@@ -496,8 +638,13 @@
       const actions = document.createElement("div");
       actions.className = "item-actions";
       if (isFile) {
-        actions.append(chip("Télécharger", () => openFile(it, true), "primary"));
-        if (isImage || /pdf|video|audio|text/.test(it.mime || "")) actions.append(chip("Ouvrir", () => openFile(it, false)));
+        if (CAN_SHARE_FILES) {
+          const save = chip("Enregistrer", () => saveViaShare(it, save), "primary");
+          actions.append(save, fileLink("Télécharger", it, true));
+        } else {
+          actions.append(fileLink("Télécharger", it, true, "primary"));
+        }
+        if (isImage || /pdf|video|audio|text/.test(it.mime || "")) actions.append(fileLink("Ouvrir", it, false));
       } else {
         if (isLink) actions.append(chip("Ouvrir", () => window.open(it.content.trim(), "_blank", "noopener"), "primary"));
         actions.append(chip("Copier", () => copyText(it.content)));

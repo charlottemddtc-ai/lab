@@ -1,5 +1,5 @@
 // Service worker de Lab : rend l'appli installable et reçoit le menu « Partager » d'Android.
-const VERSION = "lab-v4";
+const VERSION = "lab-v5";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "logo.png"];
 
 self.addEventListener("install", (e) => {
@@ -29,6 +29,7 @@ self.addEventListener("fetch", (e) => {
   const isStatic =
     url.origin === self.location.origin ||
     url.hostname === "cdn.jsdelivr.net" ||
+    url.hostname === "cdnjs.cloudflare.com" ||
     url.hostname === "fonts.googleapis.com" ||
     url.hostname === "fonts.gstatic.com";
   if (e.request.method === "GET" && isStatic) {
@@ -39,10 +40,12 @@ self.addEventListener("fetch", (e) => {
 async function staleWhileRevalidate(e, url) {
   const cache = await caches.open(VERSION);
   const isPage = e.request.mode === "navigate";
-  const cached = await cache.match(isPage ? "./" : e.request, { ignoreSearch: isPage });
+  // Pour une page, on ignore les paramètres (?share=1, ?text=...) : même page en mémoire
+  const key = isPage ? url.origin + url.pathname : e.request;
+  const cached = await cache.match(key);
   const network = fetch(e.request)
     .then((res) => {
-      if (res.ok) cache.put(isPage ? "./" : e.request, res.clone());
+      if (res.ok && !res.redirected) cache.put(key, res.clone());
       return res;
     })
     .catch(() => null);
@@ -50,7 +53,7 @@ async function staleWhileRevalidate(e, url) {
     e.waitUntil(network);
     return cached;
   }
-  return (await network) || (await cache.match("./")) || Response.error();
+  return (await network) || (isPage && (await cache.match("./"))) || Response.error();
 }
 
 async function handleShare(request, url) {

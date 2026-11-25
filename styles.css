@@ -258,3 +258,9 @@ img.logo-center { margin: 2vh auto 2vh; }
 .row-between { margin: 4px 0 22px; }
 .divider { margin: 18px 0; }
 .switch { margin-top: 22px; }
+
+/* ---------- Liens de fichiers (boutons) + dossiers ---------- */
+a.chip { display: inline-block; text-decoration: none; line-height: 1.2; }
+a.chip[aria-disabled="true"] { opacity: .55; }
+.chip:disabled { opacity: .6; cursor: default; }
+.folder-link { position: relative; margin-top: 14px; font-size: 14px; }
